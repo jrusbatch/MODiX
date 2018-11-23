@@ -1,15 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
+using CodeHollow.FeedReader;
 using Discord;
 using Discord.Commands;
-using System.Threading.Tasks;
-using System.Net.Http;
-using System.Net;
-using System.Xml;
-using Microsoft.SyndicationFeed.Rss;
-using Microsoft.SyndicationFeed;
-using System.Linq;
 
 namespace Modix.Bot.Modules
 {
@@ -19,86 +13,37 @@ namespace Modix.Bot.Modules
         [Command("rss"), Summary("Retrieve an RSS feed.")]
         public async Task RunAsync([Remainder] string feedUrl)
         {
-            using (var client = new HttpClient())
-            using (var response = await client.GetAsync(feedUrl, HttpCompletionOption.ResponseHeadersRead))
+            if (!Uri.TryCreate(feedUrl, UriKind.Absolute, out var feedUri))
             {
-                if (response.StatusCode == HttpStatusCode.OK)
-                {
-                    using (var stream = await response.Content.ReadAsStreamAsync())
-                    using (var xmlReader = XmlReader.Create(stream, new XmlReaderSettings()))
-                    {
-                        var feedReader = new RssFeedReader(xmlReader);
-                        string thumbnailUri = null;
-                        string blogTitle = null;
-                        string blogUri = null;
-                        while (await feedReader.Read())
-                        {
-                            switch (feedReader.ElementType)
-                            {
-                                case SyndicationElementType.Category:
-                                {
-                                    ISyndicationCategory category = await feedReader.ReadCategory();
-                                    break;
-                                }
-                                case SyndicationElementType.Image:
-                                {
-                                    var image = await feedReader.ReadImage();
-                                    thumbnailUri = image.Url.AbsoluteUri;
-                                    break;
-                                }
-                                case SyndicationElementType.Item:
-                                {
-
-                                    var item = await feedReader.ReadItem();
-
-                                    var builder = new EmbedBuilder()
-                                        .WithTitle(item.Title)
-                                        .WithDescription(item.Description)
-                                        .WithUrl(item.Id)
-                                        .WithTimestamp(item.Published);
-
-                                    var contributor = item.Contributors.FirstOrDefault();
-                                    if (contributor != null)
-                                    {
-                                        builder = builder.WithAuthor(author =>
-                                        {
-                                            author.WithName(contributor.Name)
-                                                .WithUrl(contributor.Uri);
-
-                                            if (thumbnailUri != null)
-                                            {
-                                                author.WithIconUrl(thumbnailUri);
-                                            }
-                                        });
-                                    }
-
-                                    var embed = builder.Build();
-                                    await Context.Channel.SendMessageAsync(string.Empty, embed: embed);
-
-                                    return;
-                                }
-                                case SyndicationElementType.Link:
-                                {
-                                    ISyndicationLink link = await feedReader.ReadLink();
-                                    break;
-                                }
-                                case SyndicationElementType.Person:
-                                {
-                                    ISyndicationPerson person = await feedReader.ReadPerson();
-                                    break;
-                                }
-                                default:
-                                {
-                                    ISyndicationContent content = await feedReader.ReadContent();
-
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                }
+                await Context.Channel.SendMessageAsync("That is not a valid feed URL.");
+                return;
             }
+
+            var feed = await FeedReader.ReadAsync(feedUri.AbsoluteUri);
+
+            var post = feed.Items.FirstOrDefault();
+
+            if (post is null)
+            {
+                await Context.Channel.SendMessageAsync("No posts were found.");
+                return;
+            }
+
+            var builder = new EmbedBuilder()
+                .WithTitle(post.Title)
+                .WithDescription(post.Description)
+                .WithUrl(post.Link)
+                .WithAuthor(author =>
+                    author.WithName(feed.Title)
+                        .WithUrl(feed.Link)
+                        .WithIconUrl(feed.ImageUrl));
+
+            if (post.PublishingDate != null)
+            {
+                builder = builder.WithTimestamp(new DateTimeOffset(post.PublishingDate.Value));
+            }
+
+            await Context.Channel.SendMessageAsync(string.Empty, embed: builder.Build());
         }
     }
 }

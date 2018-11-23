@@ -65,8 +65,7 @@
     </Touch>
   </Target>
 
-  <Target Name="RunVueCli" BeforeTargets="Build" DependsOnTargets="NpmInstall" Inputs="@(ClientSrc)" Outputs="$(MSBuildThisFileDirectory)obj\$(Configuration)\.vue_timestamp" 
-          Condition=" '$(Configuration)' == 'Debug'">
+  <Target Name="RunVueCli" BeforeTargets="Build" DependsOnTargets="NpmInstall" Inputs="@(ClientSrc)" Outputs="$(MSBuildThisFileDirectory)obj\$(Configuration)\.vue_timestamp" Condition=" '$(Configuration)' == 'Debug'">
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm run $(NpmBuild)" />
 
     <Touch Files="$(MSBuildThisFileDirectory)obj\$(Configuration)\.vue_timestamp" AlwaysCreate="true">
