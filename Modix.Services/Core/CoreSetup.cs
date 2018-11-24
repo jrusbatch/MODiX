@@ -38,6 +38,8 @@ namespace Modix.Services.Core
                 .AddScoped<IConfigurationActionRepository, ConfigurationActionRepository>()
                 .AddScoped<IDesignatedChannelMappingRepository, DesignatedChannelMappingRepository>()
                 .AddScoped<IDesignatedRoleMappingRepository, DesignatedRoleMappingRepository>()
-                .AddScoped<IMessageRepository, MessageRepository>();
+                .AddScoped<IMessageRepository, MessageRepository>()
+            // TODO: This should be scoped.
+            .AddSingleton<IFeedSubscriptionRepository, FeedSubscriptionRepository>();
     }
 }
